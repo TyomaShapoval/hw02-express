@@ -36,12 +36,7 @@ const getContactById = async (id, owner) => {
 };
 
 const removeContact = async (id, owner) => {
-  const result = await getContactById(id)
-  if(result && result._id !== owner) {
-    return Contacts.findByIdAndRemove({ _id: id })
-  } else { 
-    return null
-  }
+    return Contacts.findOneAndDelete({ _id: id, owner: owner })
 };
 
 const addContact = async (body) => {
@@ -49,11 +44,11 @@ const addContact = async (body) => {
 };
 
 const updateContact = async (id, body, owner) => {
-  return Contacts.findByIdAndUpdate({ _id: id, owner }, body, { new: true });
+  return Contacts.findOneAndUpdate({ _id: id, owner: owner }, body, { new: true });
 };
 
 const patchContact = async (id, body, owner) => {
-  return Contacts.findByIdAndUpdate({ _id: id, owner }, body, { new: true });
+  return Contacts.findOneAndUpdate({ _id: id, owner: owner }, body, { new: true });
 };
 
 module.exports = {
