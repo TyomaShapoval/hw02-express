@@ -1,7 +1,8 @@
 const app = require('./app');
 const mongoose = require('mongoose');
+require('dotenv').config();
 
-const connection = mongoose.connect(`mongodb+srv://shapoval1044:k0aACBvF5cLneSkt@homedb.ctlcjak.mongodb.net/db-contacts`)
+const connection = mongoose.connect(process.env.DB_HOST)
 
 connection
   .then(() => {
