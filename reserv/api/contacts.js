@@ -1,9 +1,7 @@
 const express = require("express");
+
 const Joi = require("joi");
-const auth = require('../../middlewares/auth')
-
-const contacts = require("../../model/contacts");
-
+const contacts = require("../../models/contacts");
 const contactsRouter = express.Router();
 
 const addSchema = Joi.object({
@@ -34,67 +32,51 @@ const addSchemaReq = Joi.object({
   favorite: Joi.boolean(),
 });
 
-contactsRouter.get("/", auth, async (req, res, next) => {
+contactsRouter.get("/", async (req, res, next) => {
   try {
-    const owner = req.user._id
-    const allContacts = await contacts.listContacts(owner);
+    const allContacts = await contacts.listContacts();
     res.json(allContacts);
   } catch (err) {
     next(err);
   }
 });
 
-contactsRouter.get("/:contactId", auth, async (req, res, next) => {
+contactsRouter.get("/:contactId", async (req, res, next) => {
   try {
     const { contactId } = req.params;
-    const owner = req.user._id
-    const contact = await contacts.getContactById(contactId, owner);
+    const contact = await contacts.getContactById(contactId);
     if (!contact) {
-        return res.status(404).json({
-        status: '404 found',
-        code: 404,
-        message: 'Not Found',
-      });
+      console.error(error);
+      next(error)
     }
     res.json(contact);
   } catch (err) {
-    res.status(404).json({
-      status: '404 found',
-      code: 404,
-      message: 'Not Found',
-    });
     next(err);
   }
 });
 
-contactsRouter.post("/", auth, async (req, res, next) => {
+contactsRouter.post("/", async (req, res, next) => {
   try {
     const { error } = addSchemaReq.validate(req.body);
     if (error) {
       console.error(error);
       next(error)
     }
-    const owner = req.user._id
     const { name, email, phone, favorite = false } = req.body;
-    const newContact = await contacts.addContact({ name, email, phone, favorite, owner});
+    const newContact = await contacts.addContact({ name, email, phone, favorite});
     res.status(201).json(newContact);
   } catch (err) {
     next(err);
   }
 });
 
-contactsRouter.delete("/:contactId", auth, async (req, res, next) => {
+contactsRouter.delete("/:contactId", async (req, res, next) => {
   try {
     const { contactId } = req.params;
-    const owner = req.user._id
-    const removeContact = await contacts.removeContact(contactId, owner);
+    const removeContact = await contacts.removeContact(contactId);
     if (!removeContact) {
-      res.status(404).json({
-        status: '404 found',
-        code: 404,
-        message: 'Not Found',
-      });
-      next()
+      console.error(error);
+      next(error)
     }
     res.json({ message: "Delete success" });
   } catch (err) {
@@ -102,9 +84,8 @@ contactsRouter.delete("/:contactId", auth, async (req, res, next) => {
   }
 });
 
-contactsRouter.put("/:contactId", auth, async (req, res, next) => {
+contactsRouter.put("/:contactId", async (req, res, next) => {
   try {
-    const owner = req.user._id
     if (Object.keys(req.body).length < 1) {
       return res.status(400).json({ message: "missing fields" });
     }
@@ -117,21 +98,15 @@ contactsRouter.put("/:contactId", auth, async (req, res, next) => {
     }
 
     const { contactId } = req.params;
-    const updateContactId = await contacts.updateContact(contactId, req.body, owner);
+    const updateContactId = await contacts.updateContact(contactId, req.body);
     res.json(updateContactId);
   } catch (err) {
-    res.status(404).json({
-      status: '404 found',
-      code: 404,
-      message: 'Not Found',
-    });
-    next();
+    next(err);
   }
 });
 
-contactsRouter.patch("/:contactId/favorite", auth, async (req, res, next) => {
+contactsRouter.patch("/:contactId/favorite", async (req, res, next) => {
   try {
-    const owner = req.user._id
     if (Object.keys(req.body).length < 1) {
       return res.status(400).json({ message: "missing fields" });
     }
@@ -144,15 +119,10 @@ contactsRouter.patch("/:contactId/favorite", auth, async (req, res, next) => {
     }
 
     const { contactId } = req.params;
-    const updateContactId = await contacts.updateContact(contactId, req.body, owner);
+    const updateContactId = await contacts.updateContact(contactId, req.body);
     res.json(updateContactId);
   } catch (err) {
-    res.status(404).json({
-      status: '404 found',
-      code: 404,
-      message: 'Not Found',
-    });
-    next();
+    next(err);
   }
 });
 
