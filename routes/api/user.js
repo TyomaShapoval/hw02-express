@@ -1,9 +1,30 @@
 const express = require('express')
 const usersRouter = express.Router()
 const jwt = require('jsonwebtoken')
+const path = require('path');
+
 const User = require('../../model/users')
+const multer = require('multer');
 require('dotenv').config()
 const auth = require('../../middlewares/auth')
+const gravatar = require('gravatar');
+const Jimp = require('jimp')
+
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, path.join(__dirname, `../../tmp`));
+  },
+  filename: (req, file, cb) => {
+    cb(null, file.originalname);
+  },
+  limits: {
+    fileSize: 1048576,
+  },
+});
+
+const upload = multer({
+  storage: storage,
+});
 
 usersRouter.post('/register', async (req, res, next) => {
     const { username, email, password, subscription = "starter" } = req.body
@@ -17,7 +38,8 @@ usersRouter.post('/register', async (req, res, next) => {
       })
     }
     try {
-      const newUser = new User({ username, email })
+      const avatarURL = gravatar.url(email, {protocol: 'https', s: '100'});
+      const newUser = new User({ username, email, avatarURL })
       if (password.length < 6) {
         return res.status(400).json({
           status: 'Bad Request',
@@ -32,7 +54,8 @@ usersRouter.post('/register', async (req, res, next) => {
         ResponseBody: {
             "user": {
               "email": email,
-              "subscription": subscription
+              "subscription": subscription,
+              "avatar": avatarURL
             }
           },
       })
@@ -115,5 +138,32 @@ usersRouter.post('/register', async (req, res, next) => {
     });
   }
   );
+
+  usersRouter.patch("/avatars", auth, upload.single('image'), async (req, res, next) => {
+    console.log('file', req.file)
+    const ImgPath = ('public/avatars/IMG_' + Math.floor(Math.random()*1e9) + req.file.originalname )
+    Jimp.read(req.file.path, (err, img) => {
+      if (err) throw err;
+      img
+        .resize(250, 250)
+        .write(ImgPath, (err) => {
+          if (err) throw err;
+          console.log('Зображення збережено!');
+      });
+    });
+
+    const { _id } = req.user;
+  
+    await User.findByIdAndUpdate(_id, { avatarURL: ImgPath.slice(6) });
+
+    return res.status(200).json({
+      status: "200 OK",
+      code: 200,
+      ResponseBody: {
+        "avatarURL": ImgPath.slice(6)
+      }
+    });
+  });
+  
 
   module.exports = usersRouter
