@@ -15,6 +15,9 @@ const userSchema = new Schema({
       unique: true,
       match: /[a-z0-9]+@[a-z]+\.[a-z]{2,3}/,
     },
+    avatarURL: {
+      type: String,
+    },
     subscription: {
       type: String,
       enum: ["starter", "pro", "business"],
