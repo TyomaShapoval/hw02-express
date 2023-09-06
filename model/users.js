@@ -15,6 +15,14 @@ const userSchema = new Schema({
       unique: true,
       match: /[a-z0-9]+@[a-z]+\.[a-z]{2,3}/,
     },
+    verify: {
+      type: Boolean,
+      default: false,
+    },
+    verificationToken: {
+      type: String,
+      required: [true, 'Verify token is required'],
+    },
     avatarURL: {
       type: String,
     },

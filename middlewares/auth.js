@@ -19,6 +19,13 @@ const auth = async (req, res, next) => {
     if (!user || !user.token || user.token !== token) {
         return res.status(401).json(errorData);
     }
+    if (!user.verify) {
+      return res.status(401).json({
+        status: '401 Unauthorized',
+        code: 401,
+        message: 'No verify',
+      });
+    }
     req.user = user;
     next();
   } catch (error) {
