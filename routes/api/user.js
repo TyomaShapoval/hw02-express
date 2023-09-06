@@ -2,6 +2,7 @@ const express = require('express')
 const usersRouter = express.Router()
 const jwt = require('jsonwebtoken')
 const path = require('path');
+const {nanoid} = require('nanoid')
 
 const User = require('../../model/users')
 const multer = require('multer');
@@ -9,6 +10,13 @@ require('dotenv').config()
 const auth = require('../../middlewares/auth')
 const gravatar = require('gravatar');
 const Jimp = require('jimp')
+const Mailgun = require('mailgun.js');
+const formData = require('form-data');
+const mailgun = new Mailgun(formData);
+const mg = mailgun.client({
+	username: 'KeyTeam',
+	key: `${process.env.PRIVATE_API_SEND}`,
+});
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -38,8 +46,11 @@ usersRouter.post('/register', async (req, res, next) => {
       })
     }
     try {
+      const verify = false;
+      const verificationToken = nanoid();
+      const link = `http://localhost:3000/api/users/verify/${verificationToken}`;
       const avatarURL = gravatar.url(email, {protocol: 'https', s: '100'});
-      const newUser = new User({ username, email, avatarURL })
+      const newUser = new User({ username, email, avatarURL, verify, verificationToken })
       if (password.length < 6) {
         return res.status(400).json({
           status: 'Bad Request',
@@ -49,13 +60,24 @@ usersRouter.post('/register', async (req, res, next) => {
       }
       newUser.setPassword(password)
       await newUser.save()
+      
+    mg.messages.create('sandboxd1809d020dc14242af775714fb84cc87.mailgun.org', {
+		from: "shapoval1044@gmail.com",
+		to: [`${email}`],
+		subject: "Go verify, bro",
+		html: `<p>Click on the link to verify your email address: <a target="_blank" href=${link}>VERIFICATION LINK</a></p>`,
+	}).then(msg => console.log(msg))
+	.catch(err => console.log(err));
+
       res.status(201).json({
         status: '201 Created',
         ResponseBody: {
             "user": {
               "email": email,
               "subscription": subscription,
-              "avatar": avatarURL
+              "avatar": avatarURL,
+              "verify": verify,
+              "verificationToken": verificationToken
             }
           },
       })
@@ -164,6 +186,79 @@ usersRouter.post('/register', async (req, res, next) => {
       }
     });
   });
+
+  usersRouter.get('/verify/:verificationToken', async (req, res) => {
+    const { verificationToken } = req.params;
+
+    const user = await User.findOne({ verificationToken });
+
+    if (!user) {
+      return res.status(404).json({
+        status: '404 Not Found',
+        ResponseBody: {
+          "message": "User not found"
+        },
+      })    
+    }
   
+    await User.findByIdAndUpdate(user._id, {
+      verify: true,
+      verificationToken: null,
+    });
+  
+    res.json({
+      status: "OK",
+      code: 200,
+      message: "Verification successful",
+    });
+    
+  }
+  );
+  
+  usersRouter.post('/verify', async (req, res) => {
+
+    const {email} = req.body
+
+    if (!email) {
+      return res.json({
+        code: 400,
+        message: "missing required field email"
+      })
+    }
+
+    const user = await User.findOne({ email });
+    
+    if (!user) {
+      return res.json({
+        status: 404,
+        code: 404,
+        message: "Not Found"
+      })
+    }
+
+    if (user.verify) {
+      return res.json({
+        code: 400,
+        message: "Verification has already been passed"
+      })
+    }
+
+    const link = `http://localhost:3000/api/users/verify/${user.verificationToken}`;
+
+    mg.messages.create('sandboxd1809d020dc14242af775714fb84cc87.mailgun.org', {
+      from: "shapoval1044@gmail.com",
+      to: [`${email}`],
+      subject: "Go verify, bro",
+      html: `<p>Click on the link to verify your email address: <a target="_blank" href=${link}>VERIFICATION LINK</a></p>`,
+    }).then(msg => console.log(msg))
+    .catch(err => console.log(err));
+
+    return res.json({
+      RequestBody: {
+        "email": email
+      }
+    })
+
+  });
 
   module.exports = usersRouter
